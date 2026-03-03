@@ -1,0 +1,344 @@
+:root {
+    --toggle-accent: rgba(99, 102, 241, 0.6);
+    --toggle-accent-bg: rgba(99, 102, 241, 0.4);
+}
+
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #121011;
+    background-image: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
+        radial-gradient(circle at 50% 100%, rgba(236, 72, 153, 0.05) 0%, transparent 50%);
+    font-family: 'Outfit', sans-serif;
+    color: #fff;
+}
+
+#canvas-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+#ui-container {
+    position: absolute;
+    top: 50%;
+    right: 8%;
+    transform: translateY(-50%);
+    z-index: 10;
+    background: transparent;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+    width: 320px;
+}
+
+#info-container {
+    position: absolute;
+    top: 50%;
+    left: 8%;
+    transform: translateY(-50%);
+    z-index: 10;
+    background: transparent;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    width: 320px;
+}
+
+#info-container h2 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: -0.5px;
+}
+
+#info-container p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+#download-addon-btn {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 12px 24px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 500;
+    font-size: 13px;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    margin-top: 8px;
+}
+
+#download-addon-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 500;
+    color: #fff;
+    letter-spacing: -0.5px;
+}
+
+.input-group {
+    display: flex;
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+.input-group input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    padding: 12px 14px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.input-group input:focus {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+button {
+    background: transparent;
+    color: #fff;
+    border: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 0 20px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 500;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+button:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+button:active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.footer-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.subtitle {
+    margin: 0;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.secondary-btn {
+    width: 100%;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+}
+
+.secondary-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+#texture-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+}
+
+.drop-zone {
+    width: 100%;
+    height: 100px;
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    background: transparent;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.drop-zone:hover {
+    border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.drop-zone.dragover {
+    border-color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.drop-text {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    text-transform: uppercase;
+    font-weight: 500;
+    letter-spacing: 1px;
+    pointer-events: none;
+    text-align: center;
+}
+
+#texture-preview {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+    image-rendering: -webkit-optimize-contrast;
+    display: none;
+    pointer-events: none;
+}
+
+#download-btn {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    background: transparent;
+    color: #fff;
+    text-decoration: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+}
+
+#download-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+body.transparent-mode {
+    background-color: #181617 !important;
+    background-image:
+        linear-gradient(45deg, #111 25%, transparent 25%),
+        linear-gradient(135deg, #111 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #111 75%),
+        linear-gradient(135deg, transparent 75%, #111 75%) !important;
+    background-size: 24px 24px !important;
+    background-position: 0 0, 12px 0, 12px -12px, 0px 12px !important;
+}
+
+/* UI Structure */
+.toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 15px;
+    width: 100%;
+}
+
+.toggles label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.toggles label:hover {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.toggles input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    position: relative;
+    cursor: pointer;
+    outline: none;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+    margin: 0;
+}
+
+.toggles input[type="checkbox"]::before {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    background: rgba(255, 255, 255, 0.6);
+    transition: all 0.3s ease;
+}
+
+.toggles input[type="checkbox"]:checked {
+    background: var(--toggle-accent-bg);
+    border-color: var(--toggle-accent);
+}
+
+.toggles input[type="checkbox"]:checked::before {
+    transform: translateX(16px);
+    background: #fff;
+}
+
+#screenshot-btn {
+    margin-top: 10px;
+}
