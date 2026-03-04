@@ -342,3 +342,76 @@ body.transparent-mode {
 #screenshot-btn {
     margin-top: 10px;
 }
+
+/* Mobile responsive layout */
+@media screen and (max-width: 800px) {
+    body, html {
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 20px;
+        box-sizing: border-box;
+    }
+    
+    #canvas-container {
+        position: relative;
+        width: 100%;
+        height: 50vh;
+        min-height: 400px;
+        order: 2;
+        z-index: 1;
+        margin-bottom: 30px;
+    }
+    
+    #info-container {
+        position: relative;
+        top: auto;
+        left: auto;
+        transform: none;
+        width: 100%;
+        max-width: 400px;
+        order: 1;
+        align-items: center;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    
+    #info-container h2 {
+        text-align: center;
+    }
+    
+    #info-container p {
+        text-align: center;
+    }
+    
+    #ui-container {
+        position: relative;
+        top: auto;
+        right: auto;
+        transform: none;
+        width: 100%;
+        max-width: 400px;
+        order: 3;
+        align-items: center;
+    }
+    
+    h1 {
+        text-align: center;
+    }
+    
+    .input-group,
+    #texture-panel,
+    .footer-group {
+        width: 100%;
+        align-items: center;
+    }
+    
+    #download-addon-btn {
+        margin: 10px auto;
+    }
+}

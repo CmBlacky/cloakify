@@ -69,7 +69,10 @@ class CloakifyApp {
 
     setupRenderer() {
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        const width = this.ui.container ? this.ui.container.clientWidth : window.innerWidth;
+        const height = this.ui.container ? this.ui.container.clientHeight : window.innerHeight;
+        this.renderer.setSize(width, height);
 
         const isHQ = this.ui.hqToggle ? this.ui.hqToggle.checked : true;
         this.renderer.setPixelRatio(isHQ ? window.devicePixelRatio : Math.min(window.devicePixelRatio, 1.0));
@@ -83,7 +86,9 @@ class CloakifyApp {
     }
 
     setupCameras() {
-        const aspect = window.innerWidth / window.innerHeight;
+        const width = this.ui.container ? this.ui.container.clientWidth : window.innerWidth;
+        const height = this.ui.container ? this.ui.container.clientHeight : window.innerHeight;
+        const aspect = width / height;
 
         // Perspective Camera
         this.perspectiveCamera = new THREE.PerspectiveCamera(40, aspect, 0.1, 100);
@@ -759,7 +764,9 @@ class CloakifyApp {
     }
 
     onWindowResize() {
-        const aspect = window.innerWidth / window.innerHeight;
+        const width = this.ui.container ? this.ui.container.clientWidth : window.innerWidth;
+        const height = this.ui.container ? this.ui.container.clientHeight : window.innerHeight;
+        const aspect = width / height;
 
         if (this.perspectiveCamera) {
             this.perspectiveCamera.aspect = aspect;
@@ -776,7 +783,7 @@ class CloakifyApp {
         }
 
         if (this.renderer) {
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setSize(width, height);
         }
     }
 
