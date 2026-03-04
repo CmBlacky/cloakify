@@ -1,9 +1,17 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = 'https://xwqrrppnolqznrawhwsc.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3cXJycHBub2xxem5yYXdod3NjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDYwOTcsImV4cCI6MjA4ODIyMjA5N30.U_hjMsT1jTe8nefgmPH8KbWFQ3TAmxAaHAKlz6ejjU8';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 class CloakifyApp {
     constructor() {
+        this.galleryCapes = [];
+
         // Cache UI Elements
         this.ui = this.cacheUIElements();
 
@@ -31,6 +39,18 @@ class CloakifyApp {
         this.highlightLines = [];
         this.shadowMesh = null;
 
+        // Animation properties
+        this.clock = new THREE.Clock();
+        this.capeMeshesToAnimate = [];
+        this.capeBbox = null;
+        this.capeHeight = 1;
+        this.capeAnimationConfig = {
+            active: false,
+            amplitude: 0.15, // max displacement
+            speed: 2.0,      // wave speed
+            frequency: 3.0   // waves along height
+        };
+
         // Startup
         this.init();
     }
@@ -48,8 +68,32 @@ class CloakifyApp {
             orthoToggle: document.getElementById('ortho-toggle'),
             transparentBgToggle: document.getElementById('transparent-bg-toggle'),
             elytraToggle: document.getElementById('elytra-toggle'),
+            capeAnimToggle: document.getElementById('cape-anim-toggle'),
             hqToggle: document.getElementById('hq-toggle'),
-            fileInput: document.getElementById('file-input')
+            shareLinkBtn: document.getElementById('share-link-btn'),
+            fileInput: document.getElementById('file-input'),
+
+            // Modal Elements
+            publishModal: document.getElementById('publish-modal'),
+            modalForm: document.getElementById('modal-form'),
+            modalResult: document.getElementById('modal-result'),
+            creatorNameInput: document.getElementById('creator-name-input'),
+            capeNameInput: document.getElementById('cape-name-input'),
+            capeTagsInput: document.getElementById('cape-tags-input'),
+            modalSubmitBtn: document.getElementById('modal-submit-btn'),
+            shareLinkResult: document.getElementById('share-link-result'),
+            modalCopyBtn: document.getElementById('modal-copy-btn'),
+            modalCloseBtn: document.getElementById('modal-close-btn'),
+            modalCancelBtn: document.getElementById('modal-cancel-btn'),
+
+            // Gallery Elements
+            galleryBtn: document.getElementById('gallery-btn'),
+            galleryModal: document.getElementById('gallery-modal'),
+            galleryCloseBtn: document.getElementById('gallery-close-btn'),
+            gallerySearch: document.getElementById('gallery-search'),
+            galleryFilter: document.getElementById('gallery-filter'),
+            galleryGrid: document.getElementById('gallery-grid'),
+            galleryLoading: document.getElementById('gallery-loading')
         };
     }
 
@@ -65,11 +109,152 @@ class CloakifyApp {
 
         this.animate = this.animate.bind(this);
         this.animate();
+
+        setTimeout(() => this.startOnboarding(), 1000);
+    }
+
+    startOnboarding() {
+        if (localStorage.getItem('cloakify_onboarding_done')) return;
+
+        const blocker = document.createElement('div');
+        blocker.id = 'onboarding-blocker';
+        document.body.appendChild(blocker);
+
+        const overlay = document.createElement('div');
+        overlay.id = 'onboarding-overlay';
+        document.body.appendChild(overlay);
+
+        const tooltip = document.createElement('div');
+        tooltip.id = 'onboarding-tooltip';
+        document.body.appendChild(tooltip);
+
+        const steps = [
+            {
+                target: '#texture-panel',
+                title: 'Design & Upload',
+                text: 'Drag & drop your Minecraft cape texture here to preview it instantly in 3D.',
+                position: 'right'
+            },
+            {
+                target: '#download-addon-btn',
+                title: 'Aseprite Integration',
+                text: 'Enhance your workflow by downloading our official extension for live syncing!',
+                position: 'bottom'
+            },
+            {
+                target: '.input-group',
+                title: 'Your Character',
+                text: 'Type your Minecraft username to load your personal skin directly.',
+                position: 'bottom'
+            },
+            {
+                target: '#gallery-btn',
+                title: 'Community Gallery',
+                text: 'Discover capes created by other talented pixel-artists, or showcase your own!',
+                position: 'bottom'
+            }
+        ];
+
+        let currentStep = 0;
+
+        const renderStep = () => {
+            if (currentStep >= steps.length) {
+                this.closeOnboarding(overlay, tooltip, blocker);
+                return;
+            }
+
+            const step = steps[currentStep];
+            const targetEl = document.querySelector(step.target);
+            if (!targetEl) {
+                currentStep++;
+                renderStep();
+                return;
+            }
+
+            // Spotlight
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); // Ensure it's in view
+
+            setTimeout(() => {
+                const rect = targetEl.getBoundingClientRect();
+                overlay.style.top = (rect.top - 8) + 'px';
+                overlay.style.left = (rect.left - 8) + 'px';
+                overlay.style.width = (rect.width + 16) + 'px';
+                overlay.style.height = (rect.height + 16) + 'px';
+                overlay.style.opacity = '1';
+
+                // Reset tooltip
+                tooltip.classList.remove('active');
+
+                setTimeout(() => {
+                    tooltip.innerHTML = `
+                        <h3>${step.title}</h3>
+                        <p>${step.text}</p>
+                        <div class="onboarding-actions">
+                            <button class="onboarding-btn" id="ob-skip">Skip</button>
+                            <button class="onboarding-btn onboarding-btn-primary" id="ob-next">${currentStep === steps.length - 1 ? 'Finish' : 'Next'}</button>
+                        </div>
+                    `;
+
+                    document.getElementById('ob-skip').onclick = () => this.closeOnboarding(overlay, tooltip, blocker);
+                    document.getElementById('ob-next').onclick = () => {
+                        currentStep++;
+                        renderStep();
+                    };
+
+                    const ttRect = tooltip.getBoundingClientRect();
+                    let top, left;
+
+                    if (step.position === 'right') {
+                        left = rect.right + 20;
+                        top = rect.top + (rect.height / 2) - (ttRect.height / 2);
+                        // Avoid overlap horizontally if out of bounds
+                        if (left + ttRect.width > window.innerWidth - 20) {
+                            left = rect.left - ttRect.width - 20;
+                            // If it still overlaps or is out of bounds, fallback to bottom
+                            if (left < 10) {
+                                left = rect.left + (rect.width / 2) - (ttRect.width / 2);
+                                top = rect.bottom + 20;
+                            }
+                        }
+                    } else if (step.position === 'bottom') {
+                        top = rect.bottom + 20;
+                        left = rect.left + (rect.width / 2) - (ttRect.width / 2);
+                        // Avoid overlap vertically
+                        if (top + ttRect.height > window.innerHeight - 20) {
+                            top = rect.top - ttRect.height - 20;
+                        }
+                    }
+
+                    // Strict bounds checking as last resort
+                    if (top < 10) top = 10;
+                    if (left < 10) left = 10;
+                    if (left + ttRect.width > window.innerWidth - 10) left = window.innerWidth - ttRect.width - 10;
+                    if (top + ttRect.height > window.innerHeight - 10) top = window.innerHeight - ttRect.height - 10;
+
+                    tooltip.style.top = top + 'px';
+                    tooltip.style.left = left + 'px';
+                    tooltip.classList.add('active');
+                }, 200); // Wait for spot transition
+            }, 300); // Wait for scroll
+        };
+
+        renderStep();
+    }
+
+    closeOnboarding(overlay, tooltip, blocker) {
+        localStorage.setItem('cloakify_onboarding_done', 'true');
+        overlay.style.opacity = '0';
+        tooltip.style.opacity = '0';
+        setTimeout(() => {
+            blocker.remove();
+            overlay.remove();
+            tooltip.remove();
+        }, 500);
     }
 
     setupRenderer() {
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-        
+
         const width = this.ui.container ? this.ui.container.clientWidth : window.innerWidth;
         const height = this.ui.container ? this.ui.container.clientHeight : window.innerHeight;
         this.renderer.setSize(width, height);
@@ -142,6 +327,8 @@ class CloakifyApp {
         loader.load('./Ressources/cape-display.gltf', (gltf) => {
             this.models.cape = gltf.scene;
             this.processModelMaterials(this.models.cape);
+
+            this.setupCapeAnimationMeshes();
 
             this.models.cape.position.y = -1.4;
             this.models.cape.position.x = -1.5;
@@ -366,6 +553,22 @@ class CloakifyApp {
 
     handleUrlParameters() {
         const urlParams = new URLSearchParams(window.location.search);
+
+        // 1. Check for short link ID first
+        const shortId = urlParams.get('c');
+        if (shortId) {
+            this.setPublishButtonState(true);
+            this.fetchFromShortId(shortId);
+            // Handle username if present
+            if (this.ui.usernameInput && this.ui.usernameInput.value) {
+                this.updatePlayerSkin(this.ui.usernameInput.value);
+            }
+            return; // Wait for fetch before updating player skin later if needed, or done.
+        }
+
+        this.setPublishButtonState(false);
+
+        // 2. Fallback to long URL parameters
         const capeData = urlParams.get('data');
 
         if (capeData) {
@@ -384,6 +587,14 @@ class CloakifyApp {
         if (this.ui.usernameInput && this.ui.usernameInput.value) {
             this.updatePlayerSkin(this.ui.usernameInput.value);
         }
+    }
+
+    setPublishButtonState(disabled) {
+        if (!this.ui.shareLinkBtn) return;
+        this.ui.shareLinkBtn.disabled = disabled;
+        this.ui.shareLinkBtn.style.opacity = disabled ? '0.5' : '1';
+        this.ui.shareLinkBtn.style.cursor = disabled ? 'not-allowed' : 'pointer';
+        this.ui.shareLinkBtn.title = disabled ? "This cape is already in the gallery!" : "";
     }
 
     setupEventListeners() {
@@ -409,6 +620,37 @@ class CloakifyApp {
         if (this.ui.screenshotBtn) {
             this.ui.screenshotBtn.addEventListener('click', this.takeScreenshot.bind(this));
         }
+
+        if (this.ui.shareLinkBtn) {
+            this.ui.shareLinkBtn.addEventListener('click', this.openPublishModal.bind(this));
+        }
+
+        // Modal Events
+        if (this.ui.modalCancelBtn) this.ui.modalCancelBtn.addEventListener('click', this.closePublishModal.bind(this));
+        if (this.ui.modalCloseBtn) this.ui.modalCloseBtn.addEventListener('click', this.closePublishModal.bind(this));
+        if (this.ui.modalSubmitBtn) this.ui.modalSubmitBtn.addEventListener('click', this.generateShareLink.bind(this));
+        if (this.ui.modalCopyBtn) {
+            this.ui.modalCopyBtn.addEventListener('click', () => {
+                const url = this.ui.shareLinkResult.value;
+                navigator.clipboard.writeText(url).then(() => {
+                    const originalText = this.ui.modalCopyBtn.innerText;
+                    this.ui.modalCopyBtn.innerText = "Copied!";
+                    setTimeout(() => { this.ui.modalCopyBtn.innerText = originalText; }, 2000);
+                });
+            });
+        }
+
+        // Gallery Events
+        if (this.ui.galleryBtn) this.ui.galleryBtn.addEventListener('click', this.openGalleryModal.bind(this));
+        if (this.ui.galleryCloseBtn) this.ui.galleryCloseBtn.addEventListener('click', this.closeGalleryModal.bind(this));
+        if (this.ui.gallerySearch) this.ui.gallerySearch.addEventListener('input', this.renderGallery.bind(this));
+        if (this.ui.galleryFilter) this.ui.galleryFilter.addEventListener('change', this.renderGallery.bind(this));
+
+        // Click outside modals to close them
+        window.addEventListener('click', (e) => {
+            if (e.target === this.ui.publishModal) this.closePublishModal();
+            if (e.target === this.ui.galleryModal) this.closeGalleryModal();
+        });
 
         if (this.ui.orthoToggle) {
             this.ui.orthoToggle.addEventListener('change', this.toggleOrthographic.bind(this));
@@ -444,6 +686,15 @@ class CloakifyApp {
             });
         }
 
+        if (this.ui.capeAnimToggle) {
+            this.ui.capeAnimToggle.addEventListener('change', (e) => {
+                this.capeAnimationConfig.active = e.target.checked;
+                if (!this.capeAnimationConfig.active) {
+                    this.resetCapeAnimation();
+                }
+            });
+        }
+
         this.setupDragAndDrop();
     }
 
@@ -461,7 +712,13 @@ class CloakifyApp {
                     const file = e.target.files[0];
                     if (file.type === 'image/png' || file.type === 'image/jpeg') {
                         const reader = new FileReader();
-                        reader.onload = (event) => this.updateCapeTexture(event.target.result);
+                        reader.onload = (event) => {
+                            this.updateCapeTexture(event.target.result);
+                            this.setPublishButtonState(false);
+                            const newUrl = new URL(window.location.href);
+                            newUrl.searchParams.delete('c');
+                            window.history.pushState(null, '', newUrl.toString());
+                        };
                         reader.readAsDataURL(file);
                     }
                 }
@@ -489,7 +746,13 @@ class CloakifyApp {
                 const file = e.dataTransfer.files[0];
                 if (file.type === 'image/png' || file.type === 'image/jpeg') {
                     const reader = new FileReader();
-                    reader.onload = (event) => this.updateCapeTexture(event.target.result);
+                    reader.onload = (event) => {
+                        this.updateCapeTexture(event.target.result);
+                        this.setPublishButtonState(false);
+                        const newUrl = new URL(window.location.href);
+                        newUrl.searchParams.delete('c');
+                        window.history.pushState(null, '', newUrl.toString());
+                    };
                     reader.readAsDataURL(file);
                 }
             }
@@ -684,6 +947,7 @@ class CloakifyApp {
         `;
         document.documentElement.style.setProperty('--toggle-accent', `rgba(${mostColor[0]}, ${mostColor[1]}, ${mostColor[2]}, 0.8)`);
         document.documentElement.style.setProperty('--toggle-accent-bg', `rgba(${mostColor[0]}, ${mostColor[1]}, ${mostColor[2]}, 0.4)`);
+        document.documentElement.style.setProperty('--toggle-accent-rgb', `${mostColor[0]}, ${mostColor[1]}, ${mostColor[2]}`);
     }
 
     updateCapeTextureCanvas(canvas) {
@@ -789,10 +1053,556 @@ class CloakifyApp {
 
     animate() {
         requestAnimationFrame(this.animate);
+
+        const time = this.clock ? this.clock.getElapsedTime() : 0;
+        if (this.capeAnimationConfig && this.capeAnimationConfig.active) {
+            this.updateCapeAnimation(time);
+        }
+
         if (this.controls) this.controls.update();
         if (this.renderer && this.scene && this.camera) {
             this.renderer.render(this.scene, this.camera);
         }
+    }
+
+    // --- API & Sharing Mock ---
+
+    openPublishModal() {
+        if (!this.currentCapeMap || !this.currentCapeMap.image) {
+            alert("Please load a cape texture first.");
+            return;
+        }
+        this.ui.publishModal.style.display = 'flex';
+        this.ui.modalForm.style.display = 'flex';
+        this.ui.modalResult.style.display = 'none';
+        this.ui.capeNameInput.value = '';
+        this.ui.creatorNameInput.value = '';
+        this.ui.capeTagsInput.value = '';
+    }
+
+    closePublishModal() {
+        this.ui.publishModal.style.display = 'none';
+    }
+
+    // --- Gallery Logic ---
+    async openGalleryModal() {
+        this.ui.galleryModal.style.display = 'flex';
+        this.ui.galleryLoading.style.display = 'block';
+        this.ui.galleryGrid.innerHTML = ''; // clear previous
+
+        try {
+            const { data, error } = await supabase
+                .from('capes')
+                .select('created_at, creator_name, cape_name, js_slug, img_data, tags')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            this.galleryCapes = data || [];
+        } catch (error) {
+            console.error(error);
+            alert("Erreur lors du chargement de la galerie.");
+        } finally {
+            this.ui.galleryLoading.style.display = 'none';
+            this.renderGallery();
+        }
+    }
+
+    closeGalleryModal() {
+        this.ui.galleryModal.style.display = 'none';
+    }
+
+    renderGallery() {
+        const query = (this.ui.gallerySearch.value || "").toLowerCase().trim();
+        const filter = this.ui.galleryFilter.value || "newest";
+
+        // Filter
+        let filtered = this.galleryCapes.filter(cape => {
+            const cName = cape.cape_name.toLowerCase();
+            const crName = cape.creator_name.toLowerCase();
+            const tags = (cape.tags || []).join(" ").toLowerCase();
+            return cName.includes(query) || crName.includes(query) || tags.includes(query);
+        });
+
+        // Sort
+        if (filter === "oldest") {
+            filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        } else {
+            // "newest" defaults since Supabase already sends it sorted, but let's be sure
+            filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        }
+
+        this.ui.galleryGrid.innerHTML = '';
+
+        if (filtered.length === 0) {
+            this.ui.galleryGrid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: rgba(255,255,255,0.5); padding: 20px;">No capes found.</div>';
+            return;
+        }
+
+        filtered.forEach(cape => {
+            const card = document.createElement('div');
+            card.className = 'cape-card';
+            card.onclick = () => {
+                this.setPublishButtonState(true);
+                this.updateCapeTexture(cape.img_data);
+                const newUrl = new URL(window.location.href);
+                newUrl.search = "?c=" + cape.js_slug;
+                window.history.pushState(null, '', newUrl.toString());
+                this.closeGalleryModal();
+            };
+
+            const imgContainer = document.createElement('div');
+            imgContainer.className = 'cape-card-img-container';
+            const canvasWrapper = document.createElement('div');
+            canvasWrapper.className = 'cape-card-img';
+            canvasWrapper.style.display = 'flex';
+            canvasWrapper.style.alignItems = 'center';
+            canvasWrapper.style.justifyContent = 'center';
+
+            const tempImg = new Image();
+            tempImg.onload = () => {
+                // Generate Isometric Render (Higher resolution internally for crispness)
+                const isoCanvas = this.renderIsometricCape(tempImg, 250, 250);
+                isoCanvas.style.width = '100%';
+                isoCanvas.style.height = '100%';
+                isoCanvas.style.objectFit = 'contain';
+                canvasWrapper.appendChild(isoCanvas);
+                imgContainer.appendChild(canvasWrapper);
+
+                // Set resolution text
+                resBadge.innerText = Math.max(16, tempImg.width / 4) + 'x';
+
+                // Fetch dominant color for background glowing effect
+                const canvas = document.createElement('canvas');
+                canvas.width = tempImg.width;
+                canvas.height = tempImg.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(tempImg, 0, 0);
+                const data = ctx.getImageData(0, 0, tempImg.width, tempImg.height).data;
+                let r = 0, g = 0, b = 0, count = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    if (data[i + 3] > 0) { // Not transparent
+                        r += data[i];
+                        g += data[i + 1];
+                        b += data[i + 2];
+                        count++;
+                    }
+                }
+                if (count > 0) {
+                    r = Math.floor(r / count);
+                    g = Math.floor(g / count);
+                    b = Math.floor(b / count);
+                    imgContainer.style.backgroundImage = `radial-gradient(circle, rgba(${r},${g},${b},0.4) 0%, rgba(0,0,0,0.4) 100%)`;
+                    imgContainer.dataset.rgb = `${r},${g},${b}`; // Store for hover state
+                }
+            };
+            tempImg.src = cape.img_data;
+
+            const info = document.createElement('div');
+            info.className = 'cape-card-info';
+
+            const title = document.createElement('h4');
+            title.innerText = cape.cape_name;
+
+            const creatorContainer = document.createElement('div');
+            creatorContainer.style.display = 'flex';
+            creatorContainer.style.justifyContent = 'space-between';
+            creatorContainer.style.alignItems = 'center';
+
+            const creator = document.createElement('p');
+            creator.innerText = "by " + cape.creator_name;
+
+            const resBadge = document.createElement('span');
+            resBadge.style.fontSize = '10px';
+            resBadge.style.color = 'rgba(255,255,255,0.4)';
+            resBadge.style.background = 'rgba(255,255,255,0.05)';
+            resBadge.style.padding = '2px 6px';
+            resBadge.style.borderRadius = '4px';
+            resBadge.innerText = '...';
+
+            creatorContainer.appendChild(creator);
+            creatorContainer.appendChild(resBadge);
+
+            info.appendChild(title);
+            info.appendChild(creatorContainer);
+
+            // Tags
+            if (cape.tags && cape.tags.length > 0) {
+                const tagsCont = document.createElement('div');
+                tagsCont.className = 'cape-card-tags';
+                cape.tags.forEach(t => {
+                    const tg = document.createElement('span');
+                    tg.className = 'cape-card-tag';
+                    tg.innerText = t;
+                    tagsCont.appendChild(tg);
+                });
+                info.appendChild(tagsCont);
+            }
+
+            card.appendChild(imgContainer);
+            card.appendChild(info);
+
+            // 3D Hover Effect
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+
+                const rotateX = ((y - centerY) / centerY) * -7; // Reduced max deg for subtlety
+                const rotateY = ((x - centerX) / centerX) * 7;
+
+                card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+
+                // Si on a extrait la couleur du fond
+                if (imgContainer.dataset.rgb) {
+                    card.style.borderColor = `rgba(${imgContainer.dataset.rgb}, 0.8)`;
+                } else {
+                    card.style.borderColor = `var(--toggle-accent)`;
+                }
+            });
+
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = `rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;
+                card.style.borderColor = `rgba(255, 255, 255, 0.08)`;
+            });
+
+            this.ui.galleryGrid.appendChild(card);
+        });
+    }
+
+    // Render isométrique type Aseprite pour la galerie
+    renderIsometricCape(imgElement, outW, outH) {
+        const canvas = document.createElement('canvas');
+        canvas.width = outW;
+        canvas.height = outH;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        const off = document.createElement('canvas');
+        off.width = imgElement.naturalWidth || 64;
+        off.height = imgElement.naturalHeight || 32;
+        const offCtx = off.getContext('2d');
+        offCtx.drawImage(imgElement, 0, 0);
+        const imgData = offCtx.getImageData(0, 0, off.width, off.height).data;
+
+        const getCol = (px, py) => {
+            if (px < 0 || py < 0 || px >= off.width || py >= off.height) return null;
+            const idx = (Math.floor(py) * off.width + Math.floor(px)) * 4;
+            if (imgData[idx + 3] === 0) return null;
+            return `rgba(${imgData[idx]}, ${imgData[idx + 1]}, ${imgData[idx + 2]}, ${imgData[idx + 3] / 255})`;
+        };
+
+        const scale = off.width / 64;
+        const W = 10 * scale;
+        const H = 16 * scale;
+        const D = 1 * scale;
+
+        // Offset coords mapping the standard MC cape texture
+        const topX = 1 * scale; const topY = 0;
+        const rightX = 11 * scale; const rightY = 1 * scale;
+        const frontX = 1 * scale; const frontY = 1 * scale;
+
+        // Auto-scale to fit canvas and center perfectly
+        const s = Math.min((outW * 0.8) / (W + D), (outH * 0.8) / (H + (W + D) * 0.5));
+
+        const totalW = (W + D) * s;
+        const totalH = (H + (W + D) * 0.5) * s;
+
+        const offsetX = (outW - totalW) / 2 + (D * s);
+        const offsetY = (outH - totalH) / 2;
+
+        const prj = (vx, vy, vz) => {
+            const sx = (vx - vz) * s;
+            const sy = (vx + vz) * 0.5 * s + vy * s;
+            return { x: offsetX + sx, y: offsetY + sy };
+        };
+
+        const drawVoxel = (x, y, z, face, color) => {
+            let pts = [];
+            if (face === 'Top') pts = [prj(x, y, z), prj(x + 1, y, z), prj(x + 1, y, z + 1), prj(x, y, z + 1)];
+            else if (face === 'Right') pts = [prj(x + 1, y, z), prj(x + 1, y, z + 1), prj(x + 1, y + 1, z + 1), prj(x + 1, y + 1, z)];
+            else if (face === 'Front') pts = [prj(x, y, z + 1), prj(x + 1, y, z + 1), prj(x + 1, y + 1, z + 1), prj(x, y + 1, z + 1)];
+
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < 4; i++) ctx.lineTo(pts[i].x, pts[i].y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+        };
+
+        for (let z = 0; z < D; z++) {
+            for (let x = 0; x < W; x++) {
+                // Correct vertical mapping for Top Face
+                const c = getCol(topX + x, topY + z);
+                if (c) drawVoxel(x, 0, z, 'Top', c);
+            }
+        }
+        for (let z = 0; z < D; z++) {
+            for (let y = 0; y < H; y++) {
+                // Correct horizontal mapping for Right Face (Character's left arm, texture at x=11..11)
+                const c = getCol(rightX + (D - 1 - z), rightY + y);
+                if (c) drawVoxel(W - 1, y, z, 'Right', c);
+            }
+        }
+        for (let y = 0; y < H; y++) {
+            for (let x = 0; x < W; x++) {
+                const c = getCol(frontX + x, frontY + y);
+                if (c) drawVoxel(x, y, D - 1, 'Front', c);
+            }
+        }
+
+        return canvas;
+    }
+
+    // Fonction utilitaire pour créer le slug (ex: "Red Oni" -> "red-oni")
+    slugify(text) {
+        return text.toString().toLowerCase().trim()
+            .replace(/\s+/g, '-')           // Remplace les espaces par -
+            .replace(/[^\w\-]+/g, '')       // Retire les caractères non-alphanumériques
+            .replace(/\-\-+/g, '-');        // Retire les - multiples
+    }
+
+    async generateShareLink() {
+        const capeName = this.ui.capeNameInput.value.trim();
+        const creatorName = this.ui.creatorNameInput.value.trim();
+
+        // Parsing des tags
+        const tagsRaw = this.ui.capeTagsInput.value;
+        const tagsArray = tagsRaw.split(',')
+            .map(t => t.trim().toLowerCase())
+            .filter(t => t.length > 0)
+            .slice(0, 3); // Garder les 3 premiers uniquement
+
+        if (!capeName || !creatorName) {
+            alert("Please provide both a Creator Name and a Cape Name.");
+            return;
+        }
+
+        let baseSlug = this.slugify(capeName);
+        if (!baseSlug) baseSlug = "cape";
+
+        const originalText = this.ui.modalSubmitBtn.innerText;
+        this.ui.modalSubmitBtn.innerText = "Publishing...";
+        this.ui.modalSubmitBtn.disabled = true;
+
+        const canvas = this.currentCapeMap.image;
+        const base64Data = canvas.toDataURL('image/png');
+
+        if (SUPABASE_URL === 'VOTRE_URL_SUPABASE') {
+            alert("Vous devez configurer SUPABASE_URL et SUPABASE_ANON_KEY en haut du fichier app.js !");
+            this.ui.modalSubmitBtn.innerText = originalText;
+            this.ui.modalSubmitBtn.disabled = false;
+            return;
+        }
+
+        // --- SÉCURITÉ 1 : Rate Limit Côté Client (Anti-Spam Rapide) ---
+        const lastPublishTime = localStorage.getItem('cloakify_last_publish');
+        const now = Date.now();
+        if (lastPublishTime && (now - parseInt(lastPublishTime)) < 60000) { // 60 secondes d'attente
+            alert("Veuillez patienter un instant avant de publier une nouvelle cape.");
+            this.ui.modalSubmitBtn.innerText = originalText;
+            this.ui.modalSubmitBtn.disabled = false;
+            return;
+        }
+
+        try {
+            // --- SÉCURITÉ 2 : Dé-duplication de base64 ---
+            // On vérifie si la cape (les pixels exacts) existe DÉJÀ dans la base
+            // Si c'est le cas, on retourne directement le lien existant au lieu de dupliquer la ligne.
+            const { data: existingCape, error: existingError } = await supabase
+                .from('capes')
+                .select('js_slug')
+                .eq('img_data', base64Data)
+                .limit(1)
+                .single();
+
+            if (existingCape) {
+                // La cape existe déjà ! On simule un succès et on renvoie le lient de la cape existante
+                const currentUrl = new URL(window.location.href);
+                currentUrl.search = "?c=" + existingCape.js_slug;
+
+                this.ui.modalForm.style.display = 'none';
+                this.ui.modalResult.style.display = 'block';
+                this.ui.shareLinkResult.value = currentUrl.toString();
+
+                // Mettre à jour l'anti-spam quand même pour éviter le martelage
+                localStorage.setItem('cloakify_last_publish', now.toString());
+
+                this.ui.modalSubmitBtn.innerText = originalText;
+                this.ui.modalSubmitBtn.disabled = false;
+                return;
+            }
+
+            let isUnique = false;
+            let finalSlug = baseSlug;
+            let attempts = 0;
+
+            // Vérification de l'unicité du slug
+            while (!isUnique && attempts < 10) {
+                const { data, error } = await supabase
+                    .from('capes')
+                    .select('js_slug')
+                    .eq('js_slug', finalSlug)
+                    .single();
+
+                if (data) {
+                    // Slug déjà existant : on ajoute un identifiant aléatoire
+                    finalSlug = baseSlug + "-" + Math.floor(Math.random() * 10000);
+                    attempts++;
+                } else if (error && error.code === 'PGRST116') {
+                    // L'erreur 'PGRST116' indique que 0 ligne a été retournée (donc le slug est libre, parfait !)
+                    isUnique = true;
+                } else if (error) {
+                    throw error;
+                }
+            }
+
+            const { error: insertError } = await supabase
+                .from('capes')
+                .insert([{
+                    creator_name: creatorName,
+                    cape_name: capeName,
+                    js_slug: finalSlug,
+                    img_data: base64Data,
+                    tags: tagsArray
+                }]);
+
+            if (insertError) throw insertError;
+
+            // Générer l'URL finale pour le client
+            const currentUrl = new URL(window.location.href);
+            currentUrl.search = "?c=" + finalSlug;
+
+            this.ui.modalForm.style.display = 'none';
+            this.ui.modalResult.style.display = 'block';
+            this.ui.shareLinkResult.value = currentUrl.toString();
+
+            // Mémoriser l'heure de publication pour l'Anti-spam local
+            localStorage.setItem('cloakify_last_publish', Date.now().toString());
+
+        } catch (error) {
+            console.error(error);
+            alert("Erreur lors de la publication de la cape : " + error.message);
+        } finally {
+            this.ui.modalSubmitBtn.innerText = originalText;
+            this.ui.modalSubmitBtn.disabled = false;
+        }
+    }
+
+    async fetchFromShortId(shortId) {
+        if (SUPABASE_URL === 'VOTRE_URL_SUPABASE') {
+            console.warn("Supabase non-configuré, passage de la récupération.");
+            return;
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('capes')
+                .select('img_data')
+                .eq('js_slug', shortId)
+                .single();
+
+            if (error) {
+                if (error.code === 'PGRST116') throw new Error("Cette cape n'existe pas ou le lien est invalide.");
+                throw error;
+            }
+
+            if (data && data.img_data) {
+                this.updateCapeTexture(data.img_data);
+            }
+        } catch (error) {
+            console.error(error);
+            alert(error.message);
+        }
+    }
+
+    setupCapeAnimationMeshes() {
+        this.capeMeshesToAnimate = [];
+        let capeMesh = null;
+
+        this.models.cape.traverse(child => {
+            if (child.isMesh && child.name === '16x') {
+                capeMesh = child;
+            }
+        });
+
+        if (!capeMesh) return;
+
+        capeMesh.geometry.computeBoundingBox();
+        this.capeBbox = capeMesh.geometry.boundingBox.clone();
+        this.capeHeight = this.capeBbox.max.y - this.capeBbox.min.y;
+        if (this.capeHeight === 0) this.capeHeight = 1;
+
+        const addMeshForAnim = (mesh, isCape) => {
+            if (mesh.geometry && mesh.geometry.attributes.position) {
+                this.capeMeshesToAnimate.push({
+                    mesh: mesh,
+                    origPos: mesh.geometry.attributes.position.clone(),
+                    isCape: isCape
+                });
+            }
+        };
+
+        addMeshForAnim(capeMesh, true);
+
+        capeMesh.children.forEach(child => {
+            if (child.isLineSegments || child.isLine) {
+                addMeshForAnim(child, false);
+            }
+        });
+    }
+
+    updateCapeAnimation(time) {
+        const { amplitude, speed, frequency } = this.capeAnimationConfig;
+
+        this.capeMeshesToAnimate.forEach(item => {
+            const posAttr = item.mesh.geometry.attributes.position;
+            const origPos = item.origPos;
+
+            for (let i = 0; i < posAttr.count; i++) {
+                const ox = origPos.getX(i);
+                const oy = origPos.getY(i);
+                const oz = origPos.getZ(i);
+
+                // Normalise Y de 0 (haut) à 1 (bas)
+                const normalizeY = (this.capeBbox.max.y - oy) / this.capeHeight;
+                const nY = Math.max(0, Math.min(1, normalizeY));
+
+                // Mouvement sinusoïdal
+                const waveOffset = Math.sin(time * speed - nY * frequency) * amplitude * nY;
+
+                posAttr.setZ(i, oz + waveOffset);
+            }
+            posAttr.needsUpdate = true;
+
+            if (item.isCape) {
+                // Seulement pour le maillage principal pour la lumière
+                item.mesh.geometry.computeVertexNormals();
+            }
+        });
+    }
+
+    resetCapeAnimation() {
+        this.capeMeshesToAnimate.forEach(item => {
+            const posAttr = item.mesh.geometry.attributes.position;
+            const origPos = item.origPos;
+
+            for (let i = 0; i < posAttr.count; i++) {
+                posAttr.setZ(i, origPos.getZ(i));
+            }
+            posAttr.needsUpdate = true;
+
+            if (item.isCape) {
+                item.mesh.geometry.computeVertexNormals();
+            }
+        });
     }
 }
 

@@ -14,8 +14,9 @@
         <h2>What is Cloakify?</h2>
         <p>Cloakify is a simple 3D viewer and an Aseprite Extension allowing you to create, preview and export custom
             Minecraft Capes with ease. Say goodbye to guesswork and streamline your pixel-art workflow!</p>
-        <a href="https://github.com/CmBlacky/cloakify/releases/tag/release" id="download-addon-btn" target="_blank">Download
-            Aseprite Addon</a>
+        <a href="https://github.com/CmBlacky/cloakify/releases/tag/release" id="download-addon-btn" target="_blank"
+            style="width: 100%; box-sizing: border-box; text-align: center; display: block;">Download Aseprite Addon</a>
+        <button id="gallery-btn" class="gallery-access-btn">Browse Community Gallery</button>
     </div>
 
     <div id="ui-container">
@@ -36,31 +37,81 @@
 
         <div class="footer-group">
             <div class="toggles">
-                <label>
+                <label title="No perspective distortion">
                     <input type="checkbox" id="ortho-toggle" checked> Orthographic Camera
                 </label>
                 <label>
                     <input type="checkbox" id="transparent-bg-toggle"> Transparent Background
                 </label>
-                <label>
+                <label title="Preview with elytra equipped">
                     <input type="checkbox" id="elytra-toggle"> Elytra Preview
                 </label>
                 <label>
+                    <input type="checkbox" id="cape-anim-toggle"> Cape Animation
+                </label>
+                <label title="Higher quality, slower">
                     <input type="checkbox" id="hq-toggle" checked> HQ Render
                 </label>
             </div>
             <p class="subtitle">Drag to rotate • Scroll to zoom</p>
             <button id="reset-view-btn" class="secondary-btn">Reset 3/4 View</button>
             <button id="screenshot-btn" class="secondary-btn">Take Screenshot</button>
+            <button id="share-link-btn" class="secondary-btn">Publish Cape</button>
         </div>
     </div>
     <div id="canvas-container"></div>
+
+    <div id="publish-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3>Publish to Gallery</h3>
+            <p>Save your cape and share it with the world!</p>
+            <div id="modal-form" class="modal-form">
+                <input type="text" id="creator-name-input" placeholder="Creator Name (e.g. Notch)">
+                <input type="text" id="cape-name-input" placeholder="Cape Name (e.g. Red Oni)">
+                <input type="text" id="cape-tags-input" placeholder="Tags (e.g. fire, cool, red) - Max 3">
+                <button id="modal-submit-btn" class="primary-btn">Generate Share Link</button>
+            </div>
+            <div id="modal-result" style="display: none;">
+                <input type="text" id="share-link-result" readonly>
+                <div class="modal-actions">
+                    <button id="modal-copy-btn" class="primary-btn">Copy Link</button>
+                    <button id="modal-close-btn" class="secondary-btn">Close</button>
+                </div>
+            </div>
+            <button id="modal-cancel-btn" class="close-icon">&times;</button>
+        </div>
+    </div>
+
+    <!-- Gallery Modal -->
+    <div id="gallery-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content gallery-content">
+            <div class="gallery-header">
+                <h3>Community Gallery</h3>
+                <button id="gallery-close-btn" class="close-icon">&times;</button>
+            </div>
+            <div class="gallery-controls">
+                <input type="text" id="gallery-search" placeholder="Search capes, creators, tags...">
+                <select id="gallery-filter">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                </select>
+            </div>
+            <div class="gallery-grid" id="gallery-grid">
+                <!-- Capes will be injected here -->
+            </div>
+            <div id="gallery-loading"
+                style="display: none; text-align: center; padding: 20px; color: rgba(255,255,255,0.7);">
+                Loading capes...
+            </div>
+        </div>
+    </div>
 
     <script type="importmap">
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"
             }
         }
     </script>
